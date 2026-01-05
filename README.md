@@ -2,7 +2,7 @@
 
 ## Visao Geral
 
-O **Presttech Ops Console** e uma plataforma de operacoes de vendas B2B desenvolvida para otimizar cold calling e vendas para empresas recem-registradas no Brasil (CNPJs). O sistema gerencia o funil de vendas completo, desde a geracao de leads ate a entrega em producao, com controle de acesso baseado em funcao para SDR (Sales Development Representatives) e HEAD (gestores).
+O **Presttech Ops Console** é uma plataforma AIO de operações de vendas B2B que gerencia funil de vendas, propostas públicas, produção de sites automatizada e métricas por SDR. Foi adaptado para execução local e produção (PM2 + Nginx) e inclui automações idempotentes para escalar operações com mínimo toque humano.
 
 ## Proposta e Objetivo
 
@@ -244,18 +244,21 @@ presttech-ops-console/
 
 ```bash
 # Desenvolvimento
-npm run dev              # Inicia servidor de desenvolvimento
+npm run dev              # Inicia servidor de desenvolvimento (server + vite)
+npm run dev:local        # Inicia apenas o servidor (compatível com Windows)
+npm run dev:full         # Setup dev completo: cria .env (se faltar), aplica schema, cria usuário padrão e inicia o servidor
 
 # Build de producao
 npm run build            # Gera bundle de producao
+npm run start:pm2        # Inicia com PM2 usando ecosystem.config.cjs (produção)
 
 # Banco de dados
-npm run db:push          # Aplica schema ao banco
+npm run db:push          # Aplica schema (Drizzle)
 
 # Criar usuario
 node scripts/create-user.js  # Cria usuario via CLI
+node scripts/create-default-user.cjs  # Insere usuário dev (admin@local/admin123)
 ```
-
 ## Suporte e Contato
 
 Para duvidas sobre o projeto ou contribuicoes, consulte a documentacao interna ou entre em contato com a equipe de desenvolvimento.

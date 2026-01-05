@@ -24,15 +24,14 @@ export function Sidebar() {
   const isHead = user?.role === "HEAD";
 
   const navigation = [
+    { name: "Landing", href: "/landing", icon: LayoutDashboard },
     { name: "Painel de Controle", href: "/", icon: LayoutDashboard },
     { name: "Leads", href: "/leads", icon: Users },
     { name: "Gerador de Leads", href: "/lead-generator", icon: Zap },
-    ...(isHead ? [{ name: "Duplicados", href: "/duplicates", icon: Copy }] : []),
     { name: "Negócios", href: "/deals", icon: Briefcase },
     ...(isHead ? [{ name: "Produção", href: "/production", icon: Factory }] : []),
     { name: "Suporte", href: "/support", icon: LifeBuoy },
     { name: "Templates", href: "/templates", icon: FileText },
-    ...(isHead ? [{ name: "Regras", href: "/rules", icon: ShieldAlert }] : []),
     { name: "Relatórios", href: "/reports", icon: BarChart3 },
   ];
 

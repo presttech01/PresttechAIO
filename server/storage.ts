@@ -2,10 +2,11 @@ import { db } from "./db";
 import { 
   users, leads, callLogs, diagnosis, deals, dealUpdates, handoffs, productionTasks, supportTickets,
   settings, messageTemplates, rules, segmentPresets, leadBatches,
+  proposals, prompts, promptVersions, siteTemplates,
   type User, type Lead, type CallLog, type Diagnosis, type Deal, type DealUpdate, type Handoff, type ProductionTask, type SupportTicket,
-  type Settings, type MessageTemplate, type Rule, type SegmentPreset, type LeadBatch,
+  type Settings, type MessageTemplate, type Rule, type SegmentPreset, type LeadBatch, type Proposal, type Prompt, type PromptVersion, type SiteTemplate,
   type InsertUser, type InsertLead, type InsertCallLog, type InsertDiagnosis, type InsertDeal, type InsertDealUpdate, type InsertHandoff, type InsertProductionTask, type InsertSupportTicket,
-  type InsertSettings, type InsertMessageTemplate, type InsertRule, type InsertSegmentPreset, type InsertLeadBatch
+  type InsertSettings, type InsertMessageTemplate, type InsertRule, type InsertSegmentPreset, type InsertLeadBatch, type InsertProposal, type InsertPrompt, type InsertPromptVersion, type InsertSiteTemplate
 } from "@shared/schema";
 import { eq, desc, and, sql, notInArray, asc, lt, gte, or, ilike } from "drizzle-orm";
 import session from "express-session";
@@ -79,6 +80,31 @@ export interface IStorage {
 
   // Message Templates
   getMessageTemplates(category?: string): Promise<MessageTemplate[]>;
+  getMessageTemplate(id: number): Promise<MessageTemplate | undefined>;
+  createMessageTemplate(template: InsertMessageTemplate): Promise<MessageTemplate>;
+  updateMessageTemplate(id: number, template: Partial<InsertMessageTemplate>): Promise<MessageTemplate>;
+  deleteMessageTemplate(id: number): Promise<void>;
+
+  // Proposals
+  createProposal(p: InsertProposal): Promise<Proposal>;
+  getProposalByToken(token: string): Promise<Proposal | undefined>;
+  updateProposal(id: number, p: Partial<InsertProposal>): Promise<Proposal>;
+  getProposals(): Promise<Proposal[]>;
+
+  // Prompts
+  createPrompt(p: InsertPrompt): Promise<Prompt>;
+  createPromptVersion(p: InsertPromptVersion): Promise<PromptVersion>;
+  getPromptVersions(promptId: number): Promise<PromptVersion[]>;
+
+  // Site Templates
+  createSiteTemplate(t: InsertSiteTemplate): Promise<SiteTemplate>;
+  getSiteTemplates(): Promise<SiteTemplate[]>;
+  getSiteTemplate(id: number): Promise<SiteTemplate | undefined>;
+
+  // SDR Dashboard
+  getLeadsOfDay(userId: number): Promise<Lead[]>;
+  getFollowUpsOverdue(userId: number): Promise<Lead[]>;
+  getConversionForUser(userId: number): Promise<{ leads: number, sales: number, conversion: number }>;  getMessageTemplates(category?: string): Promise<MessageTemplate[]>;
   getMessageTemplate(id: number): Promise<MessageTemplate | undefined>;
   createMessageTemplate(template: InsertMessageTemplate): Promise<MessageTemplate>;
   updateMessageTemplate(id: number, template: Partial<InsertMessageTemplate>): Promise<MessageTemplate>;
@@ -530,6 +556,92 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(segmentPresets).orderBy(segmentPresets.name);
   }
 
+  // Proposals
+  async createProposal(p: InsertProposal): Promise<Proposal> {
+    const token = p.publicToken || cryptoRandomToken();
+    const [created] = await db.insert(proposals).values({ ...p, publicToken: token }).returning();
+    return created;
+  }
+
+  async getProposalByToken(token: string): Promise<Proposal | undefined> {
+    const [p] = await db.select().from(proposals).where(eq(proposals.publicToken, token));
+    return p;
+  }
+
+  async updateProposal(id: number, p: Partial<InsertProposal>): Promise<Proposal> {
+    const [updated] = await db.update(proposals).set(p).where(eq(proposals.id, id)).returning();
+    return updated;
+  }
+
+  async getProposals(): Promise<Proposal[]> {
+    return await db.select().from(proposals).orderBy(desc(proposals.createdAt));
+  }
+
+  // Prompts
+  async createPrompt(p: InsertPrompt): Promise<Prompt> {
+    const [created] = await db.insert(prompts).values(p).returning();
+    return created;
+  }
+
+  async createPromptVersion(p: InsertPromptVersion): Promise<PromptVersion> {
+    const [created] = await db.insert(promptVersions).values(p).returning();
+    return created;
+  }
+
+  async getPromptVersions(promptId: number): Promise<PromptVersion[]> {
+    return await db.select().from(promptVersions).where(eq(promptVersions.promptId, promptId)).orderBy(desc(promptVersions.version));
+  }
+
+  // Site Templates
+  async createSiteTemplate(t: InsertSiteTemplate): Promise<SiteTemplate> {
+    const [created] = await db.insert(siteTemplates).values(t).returning();
+    return created;
+  }
+
+  async getSiteTemplates(): Promise<SiteTemplate[]> {
+    return await db.select().from(siteTemplates).orderBy(desc(siteTemplates.createdAt));
+  }
+
+  async getSiteTemplate(id: number): Promise<SiteTemplate | undefined> {
+    const [t] = await db.select().from(siteTemplates).where(eq(siteTemplates.id, id));
+    return t;
+  }
+
+  // SDR Dashboard
+  async getLeadsOfDay(userId: number): Promise<Lead[]> {
+    const start = new Date();
+    start.setHours(0,0,0,0);
+    return await db.select().from(leads).where(and(eq(leads.assignedToId, userId), gte(leads.createdAt, start))).orderBy(desc(leads.createdAt));
+  }
+
+  // Automations
+  async autoAcceptOldProposals(days: number = 7): Promise<number> {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const oldProposals = await db.select().from(proposals).where(and(eq(proposals.status, 'SENT'), lt(proposals.createdAt, cutoff)));
+    for (const p of oldProposals) {
+      await db.update(proposals).set({ status: 'ACCEPTED' }).where(eq(proposals.id, p.id));
+      await db.update(leads).set({ status: 'FECHADO' }).where(eq(leads.id, p.leadId));
+    }
+    return oldProposals.length;
+  }
+
+
+
+  async getFollowUpsOverdue(userId: number): Promise<Lead[]> {
+    const now = new Date();
+    return await db.select().from(leads).where(and(eq(leads.assignedToId, userId), lt(leads.nextFollowUpAt, now))).orderBy(desc(leads.nextFollowUpAt));
+  }
+
+  async getConversionForUser(userId: number): Promise<{ leads: number, sales: number, conversion: number }> {
+    const [leadsCount] = await db.select({ count: sql<number>`count(*)` }).from(leads).where(eq(leads.assignedToId, userId));
+    const [salesCount] = await db.select({ count: sql<number>`count(*)` }).from(deals).where(and(eq(deals.userId, userId), eq(deals.status, "FECHADO")));
+    const leadsNum = Number(leadsCount?.count || 0);
+    const salesNum = Number(salesCount?.count || 0);
+    return { leads: leadsNum, sales: salesNum, conversion: leadsNum > 0 ? salesNum / leadsNum : 0 };
+  }
+
+
   async getSegmentPreset(id: number): Promise<SegmentPreset | undefined> {
     const [preset] = await db.select().from(segmentPresets).where(eq(segmentPresets.id, id));
     return preset;
@@ -589,6 +701,11 @@ export class DatabaseStorage implements IStorage {
       state: leads.state
     }).from(leads);
   }
+}
+
+// helper for token
+function cryptoRandomToken() {
+  return [...Array(40)].map(() => Math.random().toString(36)[2]).join('');
 }
 
 export const storage = new DatabaseStorage();

@@ -99,24 +99,7 @@ export const api = {
         200: z.custom<typeof leads.$inferSelect>().nullable(),
       }
     },
-    duplicates: {
-      method: "GET" as const,
-      path: "/api/leads/duplicates",
-      responses: {
-        200: z.array(z.custom<typeof leads.$inferSelect>())
-      }
-    },
-    resolveDuplicate: {
-      method: "POST" as const,
-      path: "/api/leads/:id/resolve-duplicate",
-      input: z.object({
-        action: z.enum(["ignore", "merge"]),
-        mergeWithId: z.number().optional()
-      }),
-      responses: {
-        200: z.custom<typeof leads.$inferSelect>()
-      }
-    }
+
   },
   calls: {
     create: {
@@ -328,45 +311,7 @@ export const api = {
       }
     }
   },
-  rules: {
-    list: {
-      method: "GET" as const,
-      path: "/api/rules",
-      responses: {
-        200: z.array(z.custom<typeof rules.$inferSelect>())
-      }
-    },
-    get: {
-      method: "GET" as const,
-      path: "/api/rules/:id",
-      responses: {
-        200: z.custom<typeof rules.$inferSelect>()
-      }
-    },
-    create: {
-      method: "POST" as const,
-      path: "/api/rules",
-      input: insertRuleSchema,
-      responses: {
-        201: z.custom<typeof rules.$inferSelect>()
-      }
-    },
-    update: {
-      method: "PUT" as const,
-      path: "/api/rules/:id",
-      input: insertRuleSchema.partial(),
-      responses: {
-        200: z.custom<typeof rules.$inferSelect>()
-      }
-    },
-    delete: {
-      method: "DELETE" as const,
-      path: "/api/rules/:id",
-      responses: {
-        204: z.void()
-      }
-    }
-  },
+
   segmentPresets: {
     list: {
       method: "GET" as const,
@@ -424,6 +369,62 @@ export const api = {
           term: z.string().nullable()
         })
       }
+    }
+  },
+  proposals: {
+    create: {
+      method: "POST" as const,
+      path: "/api/proposals",
+      input: z.object({ leadId: z.number(), plan: z.enum(["STARTER","BUSINESS","PRO"]), value: z.number().optional() }),
+      responses: { 201: z.any() }
+    },
+    list: {
+      method: "GET" as const,
+      path: "/api/proposals",
+      responses: { 200: z.array(z.any()) }
+    },
+    publicGet: {
+      method: "GET" as const,
+      path: "/p/:token",
+      responses: { 200: z.any(), 404: z.object({ message: z.string() }) }
+    },
+    publicAccept: {
+      method: "POST" as const,
+      path: "/api/proposals/:token/accept",
+      responses: { 200: z.any(), 404: z.object({ message: z.string() }) }
+    }
+  },
+  prompts: {
+    build: {
+      method: "POST" as const,
+      path: "/api/prompts/build",
+      input: z.object({ templateId: z.number(), input: z.record(z.any()) }),
+      responses: { 201: z.object({ prompt: z.any(), final: z.string() }) }
+    },
+    versions: {
+      method: "GET" as const,
+      path: "/api/prompts/:id/versions",
+      responses: { 200: z.array(z.any()) }
+    }
+  },
+  siteTemplates: {
+    list: {
+      method: "GET" as const,
+      path: "/api/site-templates",
+      responses: { 200: z.array(z.any()) }
+    },
+    create: {
+      method: "POST" as const,
+      path: "/api/site-templates",
+      input: z.object({ name: z.string(), plan: z.enum(["STARTER","BUSINESS","PRO"]), segment: z.string().optional(), content: z.record(z.any()) }),
+      responses: { 201: z.any() }
+    }
+  },
+  sdr: {
+    dashboard: {
+      method: "GET" as const,
+      path: "/api/sdr/dashboard",
+      responses: { 200: z.object({ leadsOfDay: z.array(z.any()), followUps: z.array(z.any()), conversion: z.object({ leads: z.number(), sales: z.number(), conversion: z.number() }) }) }
     }
   }
 };

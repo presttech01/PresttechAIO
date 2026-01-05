@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { useAuth } from "@/hooks/use-auth";
 
 import Login from "@/pages/Login";
+import Landing from "@/pages/Landing";
 import Dashboard from "@/pages/Dashboard";
 import LeadsList from "@/pages/LeadsList";
 import LeadCall from "@/pages/LeadCall";
@@ -14,9 +15,7 @@ import Diagnosis from "@/pages/Diagnosis";
 import Production from "@/pages/Production";
 import Support from "@/pages/Support";
 import Templates from "@/pages/Templates";
-import Rules from "@/pages/Rules";
 import LeadGenerator from "@/pages/LeadGenerator";
-import Duplicates from "@/pages/Duplicates";
 import Deals from "@/pages/Deals";
 import Reports from "@/pages/Reports";
 import NotFound from "@/pages/not-found";
@@ -52,10 +51,9 @@ function AuthenticatedApp() {
           <Route path="/production" component={Production} />
           <Route path="/support" component={Support} />
           <Route path="/templates" component={Templates} />
-          <Route path="/rules" component={Rules} />
           <Route path="/lead-generator" component={LeadGenerator} />
-          <Route path="/duplicates" component={Duplicates} />
           <Route path="/deals" component={Deals} />
+          <Route path="/landing" component={Landing} />
           <Route path="/reports" component={Reports} />
           <Route component={NotFound} />
         </Switch>
@@ -67,6 +65,9 @@ function AuthenticatedApp() {
 function Router() {
   const [location] = useLocation();
   
+  // Public landing page
+  if (location === "/landing") return <Landing />;
+
   // Basic route protection handled by the auth check inside AuthenticatedApp or Login page
   return location === "/login" ? <Login /> : <AuthenticatedApp />;
 }

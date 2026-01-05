@@ -44,6 +44,7 @@ export default function LeadGenerator() {
     state: "",
     daysBack: "30"
   });
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const [previewData, setPreviewData] = useState<PreviewResult | null>(null);
 
   const { data: presets = [] } = useQuery<SegmentPreset[]>({
@@ -88,7 +89,8 @@ export default function LeadGenerator() {
         city: filters.city || undefined,
         state: filters.state || undefined,
         daysBack: filters.daysBack ? Number(filters.daysBack) : undefined,
-        segment: filters.segment || undefined
+        segment: filters.segment || undefined,
+        presetId: selectedPresetId ? Number(selectedPresetId) : undefined
       });
       return res.json() as Promise<LeadBatch>;
     },
@@ -111,6 +113,12 @@ export default function LeadGenerator() {
   });
 
   const handlePresetSelect = (presetId: string) => {
+    if (!presetId) {
+      setSelectedPresetId(null);
+      return;
+    }
+
+    setSelectedPresetId(presetId);
     const preset = presets.find(p => p.id === Number(presetId));
     if (preset) {
       setFilters(prev => ({

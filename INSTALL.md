@@ -36,6 +36,9 @@ Este documento contem instrucoes detalhadas para instalar e configurar o Prestte
 
 ## Instalacao em Localhost
 
+> Observação: este projeto inclui `npm run dev:full` que aplica schema e cria um usuário dev automaticamente se você tiver um PostgreSQL acessível via `DATABASE_URL` em `.env`. Se preferir usar Docker, restaure ou crie `docker-compose.yml` com um serviço Postgres.
+
+
 ### Passo 1: Instalar Node.js
 
 **Windows/Mac:**

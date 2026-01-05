@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
@@ -85,14 +86,30 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
-    () => {
-      log(`serving on port ${port}`);
-    },
-  );
+  // reusePort option is not supported on some platforms (notably Windows), so only set it when available
+  const listenOptions: any = { port, host: "0.0.0.0" };
+  if (process.platform !== "win32") {
+    listenOptions.reusePort = true;
+  }
+
+  httpServer.listen(listenOptions, () => {
+    log(`serving on port ${port}`);
+  });
+
+  // Background jobs (run in process for dev; in prod run under PM2 with a single instance or via cron)
+  const { storage } = await import('./storage');
+
+  async function runJobs() {
+    try {
+      const accepted = await storage.autoAcceptOldProposals(7);
+      if (accepted > 0) log(`auto accepted ${accepted} old proposals`);
+    } catch (err) {
+      log(`jobs failed: ${err}`, 'jobs');
+    }
+  }
+
+  // run on startup and every hour
+  runJobs();
+  setInterval(runJobs, 1000 * 60 * 60);
+
 })();

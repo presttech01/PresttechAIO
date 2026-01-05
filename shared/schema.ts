@@ -236,6 +236,44 @@ export const leadBatches = pgTable("lead_batches", {
   completedAt: timestamp("completed_at"),
 });
 
+// === Proposals / Prompts / Templates ===
+export const proposals = pgTable("proposals", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id").notNull(),
+  plan: text("plan", { enum: ["STARTER", "BUSINESS", "PRO"] }).notNull(),
+  status: text("status", { enum: ["DRAFT", "SENT", "ACCEPTED", "EXPIRED"] }).notNull().default("DRAFT"),
+  value: integer("value").notNull().default(0),
+  publicToken: text("public_token").notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+export const prompts = pgTable("prompts", {
+  id: serial("id").primaryKey(),
+  input: jsonb("input").$type<Record<string, any>>(),
+  templateId: integer("template_id"),
+  finalPrompt: text("final_prompt").notNull(),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+export const promptVersions = pgTable("prompt_versions", {
+  id: serial("id").primaryKey(),
+  promptId: integer("prompt_id").notNull(),
+  version: integer("version").notNull().default(1),
+  final: text("final").notNull(),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+export const siteTemplates = pgTable("site_templates", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  plan: text("plan", { enum: ["STARTER", "BUSINESS", "PRO"] }).notNull(),
+  segment: text("segment"),
+  version: integer("version").default(1),
+  status: text("status", { enum: ["ACTIVE", "DEPRECATED"] }).notNull().default("ACTIVE"),
+  content: jsonb("content").$type<Record<string, any>>(),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
 // === Zod Schemas ===
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertLeadSchema = createInsertSchema(leads).omit({ id: true, createdAt: true, priorityScore: true, attempts: true, assignedToId: true });
@@ -253,6 +291,10 @@ export const insertMessageTemplateSchema = createInsertSchema(messageTemplates).
 export const insertRuleSchema = createInsertSchema(rules).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertSegmentPresetSchema = createInsertSchema(segmentPresets).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertLeadBatchSchema = createInsertSchema(leadBatches).omit({ id: true, createdAt: true, completedAt: true });
+export const insertProposalSchema = createInsertSchema(proposals).omit({ id: true, createdAt: true, publicToken: true });
+export const insertPromptSchema = createInsertSchema(prompts).omit({ id: true, createdAt: true });
+export const insertPromptVersionSchema = createInsertSchema(promptVersions).omit({ id: true, createdAt: true });
+export const insertSiteTemplateSchema = createInsertSchema(siteTemplates).omit({ id: true, createdAt: true, version: true });
 
 // === Types ===
 export type User = typeof users.$inferSelect;
@@ -287,6 +329,15 @@ export type InsertMessageTemplate = z.infer<typeof insertMessageTemplateSchema>;
 export type InsertRule = z.infer<typeof insertRuleSchema>;
 export type InsertSegmentPreset = z.infer<typeof insertSegmentPresetSchema>;
 export type InsertLeadBatch = z.infer<typeof insertLeadBatchSchema>;
+export type Proposal = typeof proposals.$inferSelect;
+export type Prompt = typeof prompts.$inferSelect;
+export type PromptVersion = typeof promptVersions.$inferSelect;
+export type SiteTemplate = typeof siteTemplates.$inferSelect;
+
+export type InsertProposal = z.infer<typeof insertProposalSchema>;
+export type InsertPrompt = z.infer<typeof insertPromptSchema>;
+export type InsertPromptVersion = z.infer<typeof insertPromptVersionSchema>;
+export type InsertSiteTemplate = z.infer<typeof insertSiteTemplateSchema>;
 
 // === Loss Reason enum for frontend ===
 export const LOSS_REASONS = [

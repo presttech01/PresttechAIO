@@ -114,5 +114,54 @@ export function setupAuth(app: Express) {
       });
       console.log("Seeded initial users");
     }
+
+    // Seed default segment presets (if none exist)
+    try {
+      const presets = await storage.getSegmentPresets();
+      if (!presets || presets.length === 0) {
+        console.log('Seeding default segment presets');
+        const defaults = [
+          {
+            name: 'Padarias e Confeitarias',
+            segment: 'PADARIA',
+            cnaes: ['4721101','4721201'],
+            pitchHint: 'Foque em delivery e gestão de pedidos',
+            commonPains: ['Falta de pedidos online','Controle de estoque manual'],
+            recommendedCta: 'Agende uma demonstração gratuita'
+          },
+          {
+            name: 'Lojas de Roupas',
+            segment: 'LOJA_ROUPAS',
+            cnaes: ['4751101','4751201'],
+            pitchHint: 'Aumente a taxa de conversão com e-commerce otimizado',
+            commonPains: ['Baixa conversão online','Gestão de estoque'],
+            recommendedCta: 'Receba uma avaliação de loja grátis'
+          },
+          {
+            name: 'Restaurantes',
+            segment: 'RESTAURANTE',
+            cnaes: ['5611203','5611103'],
+            pitchHint: 'Melhore pedidos e gestão de mesas',
+            commonPains: ['Retenção de clientes','Falta de pedidos online'],
+            recommendedCta: 'Teste nosso sistema por 14 dias'
+          },
+          {
+            name: 'Serviços de TI',
+            segment: 'TI_SERVICOS',
+            cnaes: ['6201503','6202100'],
+            pitchHint: 'Automatize suporte e vendas B2B',
+            commonPains: ['Processos manuais','Dificuldade em vender serviços recorrentes'],
+            recommendedCta: 'Converse com um especialista'
+          }
+        ];
+
+        for (const p of defaults) {
+          await storage.createSegmentPreset(p as any);
+        }
+        console.log('Default segment presets created');
+      }
+    } catch (err) {
+      console.error('Failed to seed segment presets:', err);
+    }
   })();
 }

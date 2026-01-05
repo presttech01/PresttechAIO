@@ -1,0 +1,4 @@
+# Docker support removed from the project's default dev setup.
+# If you still want to use Docker, create your own docker-compose.yml with a Postgres service
+# (example: image: postgres:15, POSTGRES_USER/POSTGRES_PASSWORD/POSTGRES_DB environment variables).
+# The dev-setup script now uses DATABASE_URL from .env and expects a running PostgreSQL instance.

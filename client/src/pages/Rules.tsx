@@ -1,5 +1,11 @@
-import { useState } from "react";
-import { PageHeader } from "@/components/PageHeader";
+export default function Rules() {
+  return (
+    <div className="p-8">
+      <h1 className="text-2xl font-bold">Seção Removida</h1>
+      <p className="text-muted-foreground mt-4">A funcionalidade de <strong>Regras</strong> foi removida do produto.</p>
+    </div>
+  );
+}
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

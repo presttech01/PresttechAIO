@@ -47,6 +47,9 @@ export async function registerRoutes(
 ): Promise<Server> {
   setupAuth(app);
 
+  // Health
+  app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+
   // === LEADS ===
   app.get(api.leads.list.path, requireAuth, async (req, res) => {
     const filters: { status?: string; search?: string; possibleDuplicate?: boolean } = {};
@@ -119,10 +122,7 @@ export async function registerRoutes(
     res.json(lead || null);
   });
 
-  app.get("/api/leads/duplicates", requireAuth, async (req, res) => {
-    const duplicates = await storage.getPossibleDuplicates();
-    res.json(duplicates);
-  });
+
 
   app.post("/api/leads/:id/resolve-duplicate", requireAuth, async (req, res) => {
     const { action, mergeWithId } = req.body;
@@ -463,33 +463,7 @@ export async function registerRoutes(
     res.sendStatus(204);
   });
 
-  // === RULES ===
-  app.get("/api/rules", requireAuth, async (req, res) => {
-    const type = req.query.type as string | undefined;
-    const allRules = await storage.getRules(type);
-    res.json(allRules);
-  });
 
-  app.get("/api/rules/:id", requireAuth, async (req, res) => {
-    const rule = await storage.getRule(Number(req.params.id));
-    if (!rule) return res.sendStatus(404);
-    res.json(rule);
-  });
-
-  app.post("/api/rules", requireHead, async (req, res) => {
-    const rule = await storage.createRule(req.body);
-    res.status(201).json(rule);
-  });
-
-  app.put("/api/rules/:id", requireHead, async (req, res) => {
-    const rule = await storage.updateRule(Number(req.params.id), req.body);
-    res.json(rule);
-  });
-
-  app.delete("/api/rules/:id", requireHead, async (req, res) => {
-    await storage.deleteRule(Number(req.params.id));
-    res.sendStatus(204);
-  });
 
   // === SEGMENT PRESETS ===
   app.get("/api/segment-presets", requireAuth, async (req, res) => {
@@ -559,6 +533,93 @@ export async function registerRoutes(
       isApiConfigured: casaDadosService.isConfigured()
     });
   });
+
+  // === PROPOSALS ===
+  // Public view of proposal
+  app.get('/p/:token', async (req, res) => {
+    const token = req.params.token;
+    const proposal = await storage.getProposalByToken(token);
+    if (!proposal) return res.status(404).send('Proposal not found');
+    const lead = await storage.getLead(proposal.leadId);
+    res.send(`<!doctype html><html><head><meta charset="utf-8"><title>Proposal</title></head><body><h1>Proposal for ${lead?.companyName || 'Lead'}</h1><p>Plan: ${proposal.plan}</p><p>Value: R$ ${proposal.value}</p><form method="POST" action="/api/proposals/${proposal.publicToken}/accept"><button type="submit">Accept</button></form></body></html>`);
+  });
+
+  // Create proposal (SDR)
+  app.post('/api/proposals', requireAuth, async (req, res) => {
+    const p = req.body;
+    // minimal validation
+    if (!p.leadId || !p.plan) return res.status(400).json({ message: 'leadId and plan are required' });
+    const created = await storage.createProposal({ ...p });
+    // mark lead status
+    await storage.updateLead(created.leadId, { status: 'PROPOSTA_ENVIADA' });
+    res.status(201).json(created);
+  });
+
+  app.get('/api/proposals', requireAuth, async (req, res) => {
+    const list = await storage.getProposals();
+    res.json(list);
+  });
+
+  // Public accept via token
+  app.post('/api/proposals/:token/accept', async (req, res) => {
+    const token = req.params.token;
+    const proposal = await storage.getProposalByToken(token);
+    if (!proposal) return res.status(404).json({ message: 'Proposal not found' });
+    if (proposal.status !== 'SENT' && proposal.status !== 'DRAFT') {
+      return res.status(400).json({ message: 'Proposal cannot be accepted' });
+    }
+    await storage.updateProposal(proposal.id, { status: 'ACCEPTED' });
+    await storage.updateLead(proposal.leadId, { status: 'FECHADO' });
+    res.send('<html><body><h1>Proposal accepted. Thank you.</h1></body></html>');
+  });
+
+  // === PROMPTS ===
+  app.post('/api/prompts/build', requireAuth, async (req, res) => {
+    const { templateId, input } = req.body;
+    if (!templateId || !input) return res.status(400).json({ message: 'templateId and input required' });
+    const template = await storage.getSiteTemplate(templateId);
+    if (!template) return res.status(404).json({ message: 'Template not found' });
+
+    // Build final prompt by combining template.content.prompt_template + JSON fields
+    const base = (template.content && template.content.prompt_template) || '';
+
+    // simple deterministic builder: JSON stringify with stable key order
+    const keys = Object.keys(input).sort();
+    const joined = keys.map(k => `${k}: ${JSON.stringify(input[k])}`).join('\n');
+    const final = `${base}\n\n${joined}`;
+0
+    const prompt = await storage.createPrompt({ input, templateId, finalPrompt: final });
+    await storage.createPromptVersion({ promptId: prompt.id, version: 1, final });
+    res.status(201).json({ prompt, final });
+  });
+
+  app.get('/api/prompts/:id/versions', requireAuth, async (req, res) => {
+    const versions = await storage.getPromptVersions(Number(req.params.id));
+    res.json(versions);
+  });
+
+  // === SITE TEMPLATES ===
+  app.get('/api/site-templates', requireAuth, async (req, res) => {
+    const t = await storage.getSiteTemplates();
+    res.json(t);
+  });
+
+  app.post('/api/site-templates', requireHead, async (req, res) => {
+    const ins = req.body;
+    const created = await storage.createSiteTemplate(ins);
+    res.status(201).json(created);
+  });
+
+  // === SDR DASHBOARD ===
+  app.get('/api/sdr/dashboard', requireAuth, async (req, res) => {
+    const userId = (req.user as any).id;
+    const leadsOfDay = await storage.getLeadsOfDay(userId);
+    const followUps = await storage.getFollowUpsOverdue(userId);
+    const conv = await storage.getConversionForUser(userId);
+    res.json({ leadsOfDay, followUps, conversion: conv });
+  });
+
+  // === LEAD GENERATOR ===
 
   app.post("/api/lead-generator/run", requireAuth, async (req, res) => {
     const { casaDadosService } = await import("./services/casaDados");

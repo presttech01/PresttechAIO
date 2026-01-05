@@ -153,29 +153,31 @@ export class CasaDadosService {
     const limitedCnpjs = cnpjList.slice(0, filters.limit || 50);
     
     const enrichedCompanies = await Promise.all(
-      limitedCnpjs.map(async (c: any) => {
+      limitedCnpjs.map(async (item: any) => {
+        const cnpjValue = typeof item === "string" ? item : (item.cnpj || item);
         try {
-          const details = await this.getCnpjDetails(c.cnpj);
+          const details = await this.getCnpjDetails(cnpjValue);
           return details;
         } catch {
+          const src = typeof item === "string" ? {} : item;
           return {
-            cnpj: c.cnpj,
-            razao_social: c.razao_social,
-            nome_fantasia: c.nome_fantasia,
-            telefone: undefined,
-            telefone_1: undefined,
-            telefone_2: undefined,
-            municipio: c.endereco?.municipio,
-            uf: c.endereco?.uf,
-            cnae_principal: c.atividade_principal?.descricao,
-            data_abertura: c.data_abertura
+            cnpj: cnpjValue,
+            razao_social: src.razao_social || undefined,
+            nome_fantasia: src.nome_fantasia || undefined,
+            telefone: src.telefone || src.telefone_1 || src.telefone_2 || undefined,
+            telefone_1: src.telefone_1,
+            telefone_2: src.telefone_2,
+            municipio: src.endereco?.municipio || src.municipio,
+            uf: src.endereco?.uf || src.uf,
+            cnae_principal: src.atividade_principal?.descricao || src.cnae_principal,
+            data_abertura: src.data_abertura
           };
         }
       })
     );
     
     return {
-      data: enrichedCompanies.filter(c => c.telefone),
+      data: enrichedCompanies.filter(c => c.telefone || c.telefone_1 || c.telefone_2),
       count: result.total || cnpjList.length,
       page: filters.page || 1,
       pages: Math.ceil((result.total || cnpjList.length) / 20)
@@ -287,7 +289,7 @@ export class CasaDadosService {
           companyName: c.nome_fantasia || c.razao_social,
           phoneRaw: phone,
           phoneNorm: normalizePhone(phone),
-          cnpj: c.cnpj.replace(/\D/g, ""),
+          cnpj: (c.cnpj || "").replace(/\D/g, ""),
           segment,
           city: c.municipio,
           state: c.uf,
